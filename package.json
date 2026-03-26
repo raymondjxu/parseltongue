@@ -1,8 +1,9 @@
 {
-  "name": "autodict",
+  "name": "parseltongue",
   "version": "0.1.0",
-  "description": "automatic indict finder",
+  "description": "debate card XML parser",
   "main": "src/index.js",
+  "types": "index.d.ts",
   "scripts": {
     "test": "jest"
   },
