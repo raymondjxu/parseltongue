@@ -28,6 +28,7 @@ export class Card {
 
   getFullText(): string;
   getHighlightedText(): string;
+  getTrimmedFullText(wordWindow?: number): string;
   getHighlightedSegments(): CardSegment[];
 }
 

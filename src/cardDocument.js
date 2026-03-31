@@ -63,6 +63,33 @@ function normalizeHighlightedText(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+const DEFAULT_TRIM_WORD_WINDOW = 20;
+
+function collectWordSpans(segments) {
+  const words = [];
+  let offset = 0;
+
+  for (const segment of segments || []) {
+    const text = String(segment?.text || '');
+    const highlighted = Boolean(segment?.highlighted);
+    const wordPattern = /\S+/g;
+    let match = wordPattern.exec(text);
+
+    while (match) {
+      words.push({
+        start: offset + match.index,
+        end: offset + match.index + match[0].length,
+        highlighted
+      });
+      match = wordPattern.exec(text);
+    }
+
+    offset += text.length;
+  }
+
+  return words;
+}
+
 class Card {
   constructor({ tag, cite, segments, red, missingCite, path }) {
     this.tag = tag || '';
@@ -80,6 +107,55 @@ class Card {
   getHighlightedText() {
     const highlighted = this.segments.filter((segment) => segment.highlighted);
     return normalizeHighlightedText(highlighted.map((segment) => segment.text).join(' '));
+  }
+
+  getTrimmedFullText(wordWindow = DEFAULT_TRIM_WORD_WINDOW) {
+    const fullText = this.getFullText();
+    if (!fullText) {
+      return '';
+    }
+
+    const words = collectWordSpans(this.segments);
+    if (!words.length) {
+      return fullText;
+    }
+
+    let firstHighlightedIndex = -1;
+    let lastHighlightedIndex = -1;
+
+    for (let index = 0; index < words.length; index += 1) {
+      if (!words[index].highlighted) {
+        continue;
+      }
+      if (firstHighlightedIndex === -1) {
+        firstHighlightedIndex = index;
+      }
+      lastHighlightedIndex = index;
+    }
+
+    if (firstHighlightedIndex === -1) {
+      return fullText;
+    }
+
+    const safeWordWindow = Math.max(0, Number.parseInt(wordWindow, 10) || 0);
+    const startWordIndex = Math.max(0, firstHighlightedIndex - safeWordWindow);
+    const endWordIndex = Math.min(words.length - 1, lastHighlightedIndex + safeWordWindow);
+
+    const startChar = startWordIndex === 0 ? 0 : words[startWordIndex].start;
+    const endChar = endWordIndex === words.length - 1 ? fullText.length : words[endWordIndex].end;
+
+    let trimmed = fullText.slice(startChar, endChar).trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (startWordIndex > 0) {
+      trimmed = `(trimmed head) ${trimmed}`;
+    }
+    if (endWordIndex < words.length - 1) {
+      trimmed = `${trimmed} (trimmed tail)`;
+    }
+
+    return trimmed;
   }
 
   getHighlightedSegments() {

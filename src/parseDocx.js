@@ -308,6 +308,16 @@ function joinCiteLines(lines) {
   return lines.reduce((acc, line) => joinCiteFragments(acc, line), '');
 }
 
+function joinTagFragments(previous, next) {
+  if (!previous) {
+    return normalizePlainText(next);
+  }
+  if (!next) {
+    return normalizePlainText(previous);
+  }
+  return `${normalizePlainText(previous)} ${normalizePlainText(next)}`;
+}
+
 function appendCardText(card, segments, hasRedText = false) {
   const cleanedSegments = normalizeSegments(segments);
   if (!cleanedSegments.length) {
@@ -460,6 +470,17 @@ async function parseDocx(filePath, options = {}) {
     }
 
     if (level === 'tag') {
+      if (
+        currentCard &&
+        pendingCite &&
+        !currentCard.cite &&
+        currentCard.cardTextSegments.length === 0 &&
+        citeBuffer.length === 0
+      ) {
+        currentCard.tag = joinTagFragments(currentCard.tag, parsed.text);
+        continue;
+      }
+
       finalizePendingCard(currentCard, pendingCite, warnings, citeBuffer);
       const card = {
         type: 'card',
