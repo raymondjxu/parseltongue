@@ -3,12 +3,15 @@ const JSZip = require('jszip');
 const { XMLParser } = require('fast-xml-parser');
 
 const DEFAULT_OPTIONS = {
-  pocketFontSizeMin: 56,
-  hatFontSizeMin: 48,
-  blockFontSizeMin: 40,
+  pocketFontSizeMin: 52,
+  hatFontSizeMin: 44,
+  blockFontSizeMin: 32,
   tagFontSizeMin: 26,
   tagFontSizeMax: 30,
-  boldRatioThreshold: 0.6,
+  boldRatioThreshold: 0.55,
+  heuristicTagBoldRatioMin: 0.6,
+  heuristicTagLargeTextRatioMin: 0.9,
+  shortUrlCiteMaxLength: 120,
   maxCiteParagraphs: 3,
   defaultPocketTitle: 'Untitled Pocket',
   defaultHatTitle: 'Untitled Hat',
@@ -54,14 +57,21 @@ function parseFontSize(value) {
 }
 
 function hasFlagValue(node) {
-  if (!node) {
+  if (node === undefined || node === null) {
     return false;
   }
+
+  if (typeof node !== 'object') {
+    return true;
+  }
+
   const val = node['@_w:val'];
   if (val === undefined) {
     return true;
   }
-  return val !== '0' && val !== 'false';
+
+  const normalized = String(val).toLowerCase();
+  return normalized !== '0' && normalized !== 'false' && normalized !== 'off';
 }
 
 function isBold(runPr, defaultPr) {
@@ -141,6 +151,13 @@ function normalizePlainText(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+function containsUrlLikeToken(text) {
+  if (!text) {
+    return false;
+  }
+  return /https?:\/\//i.test(text) || /\b(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+\/[\w%./?=#&+-]*/i.test(text);
+}
+
 function normalizeSegments(segments) {
   const cleaned = [];
   for (const segment of segments) {
@@ -177,7 +194,7 @@ function normalizeSegments(segments) {
   return cleaned.filter((segment) => segment.text.length > 0);
 }
 
-function parseParagraph(paragraph) {
+function parseParagraph(paragraph, options = DEFAULT_OPTIONS) {
   const pPr = paragraph?.['w:pPr'] || {};
   const styleId = pPr?.['w:pStyle']?.['@_w:val'] || null;
   const defaultPr = pPr?.['w:rPr'] || {};
@@ -185,6 +202,7 @@ function parseParagraph(paragraph) {
 
   let totalLength = 0;
   let boldLength = 0;
+  let atLeastTagFontLength = 0;
   let maxFontSize = null;
   const segments = [];
   let paragraphHasHighlight = false;
@@ -200,6 +218,9 @@ function parseParagraph(paragraph) {
     const runFontSize = getFontSize(runPr, defaultPr);
     if (runFontSize) {
       maxFontSize = Math.max(maxFontSize ?? 0, runFontSize);
+      if (runFontSize >= options.tagFontSizeMin) {
+        atLeastTagFontLength += runText.length;
+      }
     }
 
     const runBold = isBold(runPr, defaultPr);
@@ -221,18 +242,20 @@ function parseParagraph(paragraph) {
 
   const plainText = normalizePlainText(segments.map((segment) => segment.text).join(''));
   const boldRatio = totalLength > 0 ? boldLength / totalLength : 0;
+  const largeTextRatio = totalLength > 0 ? atLeastTagFontLength / totalLength : 0;
   return {
     styleId,
     text: plainText,
     segments,
     boldRatio,
+    largeTextRatio,
     maxFontSize,
     hasHighlight: paragraphHasHighlight,
     hasRed: paragraphHasRed
   };
 }
 
-function detectLevel(paragraph, options) {
+function detectLevel(paragraph, options, context = {}) {
   const normalizedStyle = normalizeStyleId(paragraph.styleId);
   if (normalizedStyle && HEADING_STYLE_MAP[normalizedStyle]) {
     return HEADING_STYLE_MAP[normalizedStyle];
@@ -240,31 +263,65 @@ function detectLevel(paragraph, options) {
 
   const fontSize = paragraph.maxFontSize;
   const boldLikely = paragraph.boldRatio >= options.boldRatioThreshold;
-  if (!fontSize || !boldLikely) {
+  if (fontSize && boldLikely) {
+    if (fontSize >= options.pocketFontSizeMin) {
+      return 'pocket';
+    }
+    if (fontSize >= options.hatFontSizeMin) {
+      return 'hat';
+    }
+    if (fontSize >= options.blockFontSizeMin) {
+      return 'block';
+    }
+    if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax) {
+      return 'tag';
+    }
+  }
+
+  if (!fontSize) {
     return null;
   }
 
-  if (fontSize >= options.pocketFontSizeMin) {
-    return 'pocket';
+  const heuristicallyTagSized = paragraph.largeTextRatio >= options.heuristicTagLargeTextRatioMin;
+
+  // Some docs omit bold metadata completely. In that case, rely on stable size tiers.
+  if (context.hasStrongBoldSignal === false && heuristicallyTagSized && !containsUrlLikeToken(paragraph.text)) {
+    if (fontSize >= options.pocketFontSizeMin) {
+      return 'pocket';
+    }
+    if (fontSize >= options.hatFontSizeMin) {
+      return 'hat';
+    }
+    if (fontSize >= options.blockFontSizeMin) {
+      return 'block';
+    }
+    if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax) {
+      return 'tag';
+    }
   }
-  if (fontSize >= options.hatFontSizeMin) {
-    return 'hat';
-  }
-  if (fontSize >= options.blockFontSizeMin) {
-    return 'block';
-  }
-  if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax) {
+
+  const heuristicallyTagBold = paragraph.boldRatio >= options.heuristicTagBoldRatioMin;
+  if (
+    heuristicallyTagBold &&
+    heuristicallyTagSized &&
+    !containsUrlLikeToken(paragraph.text) &&
+    fontSize >= options.tagFontSizeMin
+  ) {
     return 'tag';
   }
 
   return null;
 }
 
-function isCiteLine(text) {
+function isCiteLine(text, options = DEFAULT_OPTIONS) {
   if (!text) {
     return false;
   }
-  return /https?:\/\//i.test(text) || /\bpdf\b/i.test(text) || text.includes('//');
+  const normalized = normalizePlainText(text);
+  if (normalized.length <= options.shortUrlCiteMaxLength && containsUrlLikeToken(normalized)) {
+    return true;
+  }
+  return /https?:\/\//i.test(normalized) || /\bpdf\b/i.test(normalized) || normalized.includes('//');
 }
 
 function isCiteContinuation(text) {
@@ -372,7 +429,11 @@ async function parseDocx(filePath, options = {}) {
 
   const documentXml = await documentFile.async('string');
   const documentData = xmlParser.parse(documentXml);
-  const paragraphs = asArray(documentData?.['w:document']?.['w:body']?.['w:p']);
+  const paragraphs = asArray(documentData?.['w:document']?.['w:body']?.['w:p'])
+    .map((paragraph) => parseParagraph(paragraph, settings))
+    .filter((paragraph) => Boolean(paragraph.text));
+
+  const hasStrongBoldSignal = paragraphs.some((paragraph) => paragraph.boldRatio >= settings.boldRatioThreshold);
 
   const root = { type: 'file', children: [] };
   const warnings = [];
@@ -424,13 +485,17 @@ async function parseDocx(filePath, options = {}) {
     return root;
   };
 
-  for (const paragraph of paragraphs) {
-    const parsed = parseParagraph(paragraph);
-    if (!parsed.text) {
+  for (const parsed of paragraphs) {
+    if (currentCard && pendingCite && isCiteLine(parsed.text, settings)) {
+      const citeLines = [...citeBuffer.map((entry) => entry.text), parsed.text];
+      currentCard.cite = joinCiteLines(citeLines);
+      pendingCite = false;
+      citeBuffer = [];
+      citeContinuationRemaining = settings.maxCiteParagraphs;
       continue;
     }
 
-    const level = detectLevel(parsed, settings);
+    const level = detectLevel(parsed, settings, { hasStrongBoldSignal });
     if (level === 'pocket') {
       finalizePendingCard(currentCard, pendingCite, warnings, citeBuffer);
       currentPocket = { type: 'pocket', title: parsed.text, children: [] };
@@ -503,14 +568,6 @@ async function parseDocx(filePath, options = {}) {
     }
 
     if (pendingCite) {
-      if (isCiteLine(parsed.text)) {
-        const citeLines = [...citeBuffer.map((entry) => entry.text), parsed.text];
-        currentCard.cite = joinCiteLines(citeLines);
-        pendingCite = false;
-        citeBuffer = [];
-        citeContinuationRemaining = settings.maxCiteParagraphs;
-        continue;
-      }
       citeBuffer.push(parsed);
       if (citeBuffer.length >= settings.maxCiteParagraphs) {
         markMissingCite(currentCard, warnings);

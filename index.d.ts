@@ -49,6 +49,9 @@ export interface ParseDocxOptions {
   tagFontSizeMin?: number;
   tagFontSizeMax?: number;
   boldRatioThreshold?: number;
+  heuristicTagBoldRatioMin?: number;
+  heuristicTagLargeTextRatioMin?: number;
+  shortUrlCiteMaxLength?: number;
   maxCiteParagraphs?: number;
   defaultPocketTitle?: string;
   defaultHatTitle?: string;

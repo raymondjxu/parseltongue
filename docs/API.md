@@ -17,6 +17,9 @@ Parse a .docx debate file into the internal Card XML tree.
     - tagFontSizeMin?: number
     - tagFontSizeMax?: number
     - boldRatioThreshold?: number
+    - heuristicTagBoldRatioMin?: number
+    - heuristicTagLargeTextRatioMin?: number
+    - shortUrlCiteMaxLength?: number
     - maxCiteParagraphs?: number
     - defaultPocketTitle?: string
     - defaultHatTitle?: string
@@ -171,6 +174,9 @@ ParseDocxOptions = {
   tagFontSizeMin?: number,
   tagFontSizeMax?: number,
   boldRatioThreshold?: number,
+  heuristicTagBoldRatioMin?: number,
+  heuristicTagLargeTextRatioMin?: number,
+  shortUrlCiteMaxLength?: number,
   maxCiteParagraphs?: number,
   defaultPocketTitle?: string,
   defaultHatTitle?: string,
