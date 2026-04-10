@@ -8,6 +8,7 @@ const DEFAULT_OPTIONS = {
   blockFontSizeMin: 32,
   tagFontSizeMin: 26,
   tagFontSizeMax: 30,
+  maxTagLength: 400,
   boldRatioThreshold: 0.55,
   heuristicTagBoldRatioMin: 0.6,
   heuristicTagLargeTextRatioMin: 0.9,
@@ -257,8 +258,17 @@ function parseParagraph(paragraph, options = DEFAULT_OPTIONS) {
 
 function detectLevel(paragraph, options, context = {}) {
   const normalizedStyle = normalizeStyleId(paragraph.styleId);
+  const withinTagLength =
+    !Number.isFinite(options.maxTagLength) ||
+    options.maxTagLength <= 0 ||
+    paragraph.text.length <= options.maxTagLength;
+
   if (normalizedStyle && HEADING_STYLE_MAP[normalizedStyle]) {
-    return HEADING_STYLE_MAP[normalizedStyle];
+    const mappedLevel = HEADING_STYLE_MAP[normalizedStyle];
+    if (mappedLevel !== 'tag' || withinTagLength) {
+      return mappedLevel;
+    }
+    return null;
   }
 
   const fontSize = paragraph.maxFontSize;
@@ -273,7 +283,7 @@ function detectLevel(paragraph, options, context = {}) {
     if (fontSize >= options.blockFontSizeMin) {
       return 'block';
     }
-    if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax) {
+    if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax && withinTagLength) {
       return 'tag';
     }
   }
@@ -295,7 +305,7 @@ function detectLevel(paragraph, options, context = {}) {
     if (fontSize >= options.blockFontSizeMin) {
       return 'block';
     }
-    if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax) {
+    if (fontSize >= options.tagFontSizeMin && fontSize <= options.tagFontSizeMax && withinTagLength) {
       return 'tag';
     }
   }
@@ -305,7 +315,8 @@ function detectLevel(paragraph, options, context = {}) {
     heuristicallyTagBold &&
     heuristicallyTagSized &&
     !containsUrlLikeToken(paragraph.text) &&
-    fontSize >= options.tagFontSizeMin
+    fontSize >= options.tagFontSizeMin &&
+    withinTagLength
   ) {
     return 'tag';
   }

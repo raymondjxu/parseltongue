@@ -71,3 +71,13 @@ test('detects both AT headings as blocks in Harker fixture', async () => {
 
   expect(blockTitles).toEqual(expect.arrayContaining(['AT: PMCs', 'AT: Russia Deterrence']));
 });
+
+test('does not classify very long Durham body paragraphs as tags', async () => {
+  const fixturePath = path.join(__dirname, '..', '..', 'fixtures', '_Durham RR neg case.docx');
+  const { xml } = await parseCaseDocx(fixturePath);
+  const cards = CardDocument.fromXml(xml).getCards();
+
+  expect(cards.some((card) => card.tag.length > 400)).toBe(false);
+  expect(cards.some((card) => card.tag.includes('Djibouti enjoys a geostrategic significance'))).toBe(false);
+  expect(cards.some((card) => card.getFullText().includes('Djibouti enjoys a geostrategic significance'))).toBe(true);
+});
