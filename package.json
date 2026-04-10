@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "types": "index.d.ts",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
     "test-live": ""
   },
   "bin": {
