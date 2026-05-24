@@ -76,5 +76,5 @@ function toXml(fileNode) {
 }
 
 module.exports = {
-  toXml
+  toXml,
 };

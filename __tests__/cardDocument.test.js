@@ -1,10 +1,5 @@
 const path = require('path');
-const {
-  Card,
-  CardDocument,
-  parseCardXml,
-  parseCardXmlFile
-} = require('../src');
+const { Card, CardDocument, parseCardXml, parseCardXmlFile } = require('../src');
 
 describe('CardDocument', () => {
   const fixturePath = path.join(__dirname, '..', '..', 'fixtures', 'card-sample.xml');
@@ -21,9 +16,7 @@ describe('CardDocument', () => {
     expect(cards[0].missingCite).toBe(true);
     expect(cards[0].getFullText()).toBe('Intro Key tail');
     expect(cards[0].getHighlightedText()).toBe('Key');
-    expect(cards[0].getHighlightedSegments()).toEqual([
-      { text: 'Key', highlighted: true }
-    ]);
+    expect(cards[0].getHighlightedSegments()).toEqual([{ text: 'Key', highlighted: true }]);
   });
 
   test('parses cards from file helpers', async () => {
@@ -34,7 +27,7 @@ describe('CardDocument', () => {
     expect(cards[0].path).toEqual({
       pocket: 'Top Pocket',
       hat: 'Hat Title',
-      block: 'Block Title'
+      block: 'Block Title',
     });
     expect(cards[0].red).toBe(true);
     expect(cards[0].missingCite).toBe(true);
@@ -73,8 +66,8 @@ describe('CardDocument', () => {
       segments: [
         { text: `${leadingWords.join(' ')} `, highlighted: false },
         { text: 'focus words here', highlighted: true },
-        { text: ` ${trailingWords.join(' ')}`, highlighted: false }
-      ]
+        { text: ` ${trailingWords.join(' ')}`, highlighted: false },
+      ],
     });
 
     expect(card.getTrimmedFullText()).toBe(
@@ -86,7 +79,7 @@ describe('CardDocument', () => {
     const card = new Card({
       tag: 'Tag',
       cite: 'Cite',
-      segments: [{ text: 'No highlights remain here.', highlighted: false }]
+      segments: [{ text: 'No highlights remain here.', highlighted: false }],
     });
 
     expect(card.getTrimmedFullText()).toBe('No highlights remain here.');

@@ -10,7 +10,7 @@ function printUsage() {
 
 async function main() {
   const args = minimist(process.argv.slice(2), {
-    alias: { o: 'output' }
+    alias: { o: 'output' },
   });
   const [command, inputFile] = args._;
 

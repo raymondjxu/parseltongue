@@ -6,7 +6,7 @@ const cardXmlParser = new XMLParser({
   attributeNamePrefix: '@_',
   preserveOrder: true,
   alwaysCreateTextNode: true,
-  trimValues: false
+  trimValues: false,
 });
 
 function toArray(value) {
@@ -79,7 +79,7 @@ function collectWordSpans(segments) {
       words.push({
         start: offset + match.index,
         end: offset + match.index + match[0].length,
-        highlighted
+        highlighted,
       });
       match = wordPattern.exec(text);
     }
@@ -218,7 +218,7 @@ function parseCardNode(node, path, cards) {
       segments,
       red,
       missingCite,
-      path
+      path,
     })
   );
 }
@@ -267,5 +267,5 @@ module.exports = {
   Card,
   CardDocument,
   parseCardXml,
-  parseCardXmlFile
+  parseCardXmlFile,
 };

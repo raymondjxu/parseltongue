@@ -28,14 +28,18 @@ test('merges consecutive tag headings before cite for cardExamples', async () =>
   const cards = CardDocument.fromXml(xml).getCards();
 
   expect(cards).toHaveLength(5);
-  const mergedTagCard = cards.find((card) => card.tag.includes('Chinese economic dominance in Africa'));
+  const mergedTagCard = cards.find((card) =>
+    card.tag.includes('Chinese economic dominance in Africa')
+  );
   expect(mergedTagCard).toBeDefined();
   expect(mergedTagCard.tag).toContain("Bartha '25");
   expect(mergedTagCard.cite).toContain('Levente Bartha');
   expect(mergedTagCard.getFullText().length).toBeGreaterThan(0);
   expect(cards.some((card) => card.tag === "Bartha '25")).toBe(false);
   expect(warnings).not.toContain(
-    expect.stringContaining('Missing cite for tag: Chinese economic dominance in Africa crowds out Russian influence')
+    expect.stringContaining(
+      'Missing cite for tag: Chinese economic dominance in Africa crowds out Russian influence'
+    )
   );
 });
 
@@ -51,7 +55,9 @@ test('uses bold/size heuristics to split tags in minimally styled docs', async (
   const cards = CardDocument.fromXml(xml).getCards();
 
   expect(cards.length).toBeGreaterThan(1);
-  expect(cards.some((card) => card.tag.includes('Lack of dialogue causes nuclear miscalculation.'))).toBe(true);
+  expect(
+    cards.some((card) => card.tag.includes('Lack of dialogue causes nuclear miscalculation.'))
+  ).toBe(true);
   expect(cards.some((card) => card.cite.includes('http'))).toBe(true);
   expect(cards[0].tag).not.toMatch(/https?:\/\//i);
   expect(warnings).toHaveLength(0);
@@ -78,6 +84,10 @@ test('does not classify very long Durham body paragraphs as tags', async () => {
   const cards = CardDocument.fromXml(xml).getCards();
 
   expect(cards.some((card) => card.tag.length > 400)).toBe(false);
-  expect(cards.some((card) => card.tag.includes('Djibouti enjoys a geostrategic significance'))).toBe(false);
-  expect(cards.some((card) => card.getFullText().includes('Djibouti enjoys a geostrategic significance'))).toBe(true);
+  expect(
+    cards.some((card) => card.tag.includes('Djibouti enjoys a geostrategic significance'))
+  ).toBe(false);
+  expect(
+    cards.some((card) => card.getFullText().includes('Djibouti enjoys a geostrategic significance'))
+  ).toBe(true);
 });
